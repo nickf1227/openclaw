@@ -309,11 +309,24 @@ export abstract class MemoryManagerSyncOps {
 
   private resolveProjectIdForMemoryFile(absPath: string): string | null {
     const relPath = path.relative(this.workspaceDir, absPath).replace(/\\/g, "/");
-    const match = relPath.match(/^Projects\/([^/]+)\/\.openclaw_kb\//i);
-    if (!match?.[1]) {
-      return null;
+
+    // Fix: Match .openclaw_kb at any depth under Projects/, extracting the first segment
+    // as projectId. e.g. "Projects/a/b/c/.openclaw_kb/file.md" → projectId "a"
+    const projectMatch =
+      relPath.match(/^Projects\/([^/]+)\/.+\/\.openclaw_kb\//i) ??
+      relPath.match(/^Projects\/([^/]+)\/\.openclaw_kb\//i);
+    if (projectMatch?.[1]) {
+      return this.normalizeProjectId(projectMatch[1]);
     }
-    return this.normalizeProjectId(match[1]);
+
+    // Fix: Route skills/<name>/.openclaw_kb/ content to skill-specific DBs
+    // to prevent skills KB content from landing in main.sqlite
+    const skillMatch = relPath.match(/^skills\/([^/]+)\/\.openclaw_kb\//i);
+    if (skillMatch?.[1]) {
+      return this.normalizeProjectId(`skill-${skillMatch[1]}`);
+    }
+
+    return null;
   }
 
   private resolveProjectDbPathForSync(projectId: string): string {
@@ -753,6 +766,31 @@ export abstract class MemoryManagerSyncOps {
       const list = projectFiles.get(projectId) ?? [];
       list.push(absPath);
       projectFiles.set(projectId, list);
+    }
+
+    // Fix: Warn when project routing exists but most files land in core DB,
+    // which suggests the routing regex isn't matching nested .openclaw_kb paths.
+    if (
+      projectFiles.size > 0 &&
+      coreFiles.length > 5000 &&
+      !this.settings.suppressCoreFileWarning
+    ) {
+      const projectFileCount = [...projectFiles.values()].reduce(
+        (sum, files) => sum + files.length,
+        0,
+      );
+      const totalFiles = coreFiles.length + projectFileCount;
+      const coreRatio = coreFiles.length / totalFiles;
+
+      if (coreRatio > 0.5) {
+        log.warn(
+          `memory sync: ${coreFiles.length} files (${(coreRatio * 100).toFixed(0)}%) routed to core DB ` +
+            `with ${projectFiles.size} project DB(s) active. ` +
+            `Imbalanced distribution may indicate misconfigured routing. ` +
+            `Verify .openclaw_kb paths are under Projects/ or skills/ directories. ` +
+            `(Set suppressCoreFileWarning: true to dismiss.)`,
+        );
+      }
     }
 
     const scope = params.scope ?? "all";

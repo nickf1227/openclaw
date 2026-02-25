@@ -86,6 +86,7 @@ export type ResolvedMemorySearchConfig = {
     enabled: boolean;
     maxEntries?: number;
   };
+  suppressCoreFileWarning: boolean;
 };
 
 const DEFAULT_OPENAI_MODEL = "text-embedding-3-small";
@@ -447,6 +448,8 @@ function mergeConfig(
           ? Math.max(1, Math.floor(cache.maxEntries))
           : undefined,
     },
+    suppressCoreFileWarning:
+      overrides?.suppressCoreFileWarning ?? defaults?.suppressCoreFileWarning ?? false,
   };
 }
 

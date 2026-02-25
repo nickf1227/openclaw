@@ -205,6 +205,21 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     this.sources = new Set(params.settings.sources);
     this.queryPathHints = this.buildQueryPathHints();
     this.projectRoutes = this.buildProjectRoutes();
+
+    // Fix: Warn if split-DB routing is active but corePath defaults to path,
+    // which causes project query results to mix with core memory.
+    if (
+      this.projectRoutes.length > 0 &&
+      (!params.settings.store.corePath ||
+        params.settings.store.corePath === params.settings.store.path)
+    ) {
+      log.warn(
+        `memory: ${this.projectRoutes.length} project route(s) active but corePath is not explicitly set. ` +
+          `Core and project memories share the same DB path, which may cause mixed storage. ` +
+          `Set store.corePath to a dedicated path to enable proper split-DB routing.`,
+      );
+    }
+
     this.db = this.openDatabase();
     this.providerKey = this.computeProviderKey();
     this.cache = {
