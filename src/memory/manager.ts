@@ -206,17 +206,17 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     this.queryPathHints = this.buildQueryPathHints();
     this.projectRoutes = this.buildProjectRoutes();
 
-    // Fix: Warn if split-DB routing is active but corePath defaults to path,
-    // which causes project query results to mix with core memory.
+    // Enforce corePath separation when project routing is active.
+    // If corePath is unset or equals store.path, auto-assign a default to prevent mixed storage.
     if (
       this.projectRoutes.length > 0 &&
-      (!params.settings.store.corePath ||
-        params.settings.store.corePath === params.settings.store.path)
+      (!this.settings.store.corePath || this.settings.store.corePath === this.settings.store.path)
     ) {
+      const baseMemoryDir = path.dirname(this.settings.store.path);
+      const assignedCorePath = path.join(baseMemoryDir, "core.sqlite");
+      this.settings.store.corePath = assignedCorePath;
       log.warn(
-        `memory: ${this.projectRoutes.length} project route(s) active but corePath is not explicitly set. ` +
-          `Core and project memories share the same DB path, which may cause mixed storage. ` +
-          `Set store.corePath to a dedicated path to enable proper split-DB routing.`,
+        `Split-DB routing detected but corePath was not set. Automatically assigning corePath to ${assignedCorePath} to prevent mixed storage.`,
       );
     }
 
