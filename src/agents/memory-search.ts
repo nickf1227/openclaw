@@ -275,13 +275,13 @@ function mergeConfig(
   };
   const sync = {
     onSessionStart: overrides?.sync?.onSessionStart ?? defaults?.sync?.onSessionStart ?? true,
-    onSearch: overrides?.sync?.onSearch ?? defaults?.sync?.onSearch ?? true,
+    onSearch: overrides?.sync?.onSearch ?? defaults?.sync?.onSearch ?? false,
     watch: overrides?.sync?.watch ?? defaults?.sync?.watch ?? true,
     watchDebounceMs:
       overrides?.sync?.watchDebounceMs ??
       defaults?.sync?.watchDebounceMs ??
       DEFAULT_WATCH_DEBOUNCE_MS,
-    intervalMinutes: overrides?.sync?.intervalMinutes ?? defaults?.sync?.intervalMinutes ?? 0,
+    intervalMinutes: overrides?.sync?.intervalMinutes ?? defaults?.sync?.intervalMinutes ?? 120,
     sessions: {
       deltaBytes:
         overrides?.sync?.sessions?.deltaBytes ??

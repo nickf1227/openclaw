@@ -1,64 +1,72 @@
-# Memory Split-DB Routing
+# Memory Routing
 
-## How file routing works
+OpenClaw supports splitting your memory index across multiple databases based on the user's workspace context. This keeps massive project corpora (like the Linux kernel) from bogging down your personal assistant queries, and allows dropping a project database without losing core history.
 
-When memory sync discovers `.openclaw_kb/` directories, it routes their contents to
-project-specific SQLite databases instead of the main `main.sqlite`. The routing is
-determined by the file's relative path from the workspace root.
+## How Routing Works
 
-## Routing rules
+Every memory file path is evaluated against routing rules to determine a `projectId`.
 
-### Projects
+- If a `projectId` is found, the file goes to the project database.
+- If no `projectId` is found, the file goes to the core database (`corePath`).
 
-Pattern: `Projects/<projectName>/.../.openclaw_kb/<file>`
+### Project Boundaries
 
-The **first path segment** after `Projects/` is extracted as the `projectId`.
-The `.openclaw_kb/` directory can appear at any depth under the project.
+The router looks for `.openclaw_kb` directories to identify project roots.
+For example, `Projects/a/b/c/.openclaw_kb/file.md` sets the `projectId` to `a` (the project dirname). Skills are routed identically (e.g. `skills/repo-rag/.openclaw_kb/...` routes to `skill-repo-rag`).
 
-| Path                                                                  | projectId         |
-| --------------------------------------------------------------------- | ----------------- |
-| `Projects/myapp/.openclaw_kb/notes.md`                                | `myapp`           |
-| `Projects/myapp/src/deep/.openclaw_kb/ref.md`                         | `myapp`           |
-| `Projects/openclaw-builds/openclaw-source-main-fix/.openclaw_kb/x.md` | `openclaw-builds` |
+## Default Behavior
 
-### Skills
+OpenClaw defaults to **background sync** for memory ingestion:
 
-Pattern: `skills/<skillName>/.openclaw_kb/<file>`
+| Setting                | Default | Reason                                                                         |
+| ---------------------- | ------- | ------------------------------------------------------------------------------ |
+| `sync.onSearch`        | `false` | Prevents interactive lane starvation; blocking embeddings freeze request lanes |
+| `sync.watch`           | `true`  | Real-time file system updates without blocking                                 |
+| `sync.intervalMinutes` | `120`   | Background reconciliation every 2 hours                                        |
 
-Routed to `skill-<skillName>` as the projectId, preventing skill KB content from
-polluting the core database.
+**Why `onSearch` is disabled by default:** Synchronous indexing blocks request lanes while computing embeddings. At scale (10K+ files), batch embedding failures or API rate limits cause sequential retries that paralyze interactive sessions.
 
-| Path                                     | projectId           |
-| ---------------------------------------- | ------------------- |
-| `skills/truenas-api/.openclaw_kb/ref.md` | `skill-truenas-api` |
+## Example Configs
 
-### Everything else
+### Small/Legacy (single DB)
 
-Files not matching either pattern route to the core database (`main.sqlite`).
-
-## Diagnosing misroutes
-
-If you see an unusually large number of files in the core DB while project routes are
-active, check:
-
-1. **Nested project structures** — The first segment after `Projects/` becomes the
-   projectId. `Projects/a/b/.openclaw_kb/` routes to project `a`, not `b`.
-2. **Missing `.openclaw_kb/`** — Only directories literally named `.openclaw_kb` trigger
-   routing. Variants like `_kb` or `knowledge_base` do not.
-3. **corePath configuration** — If `store.corePath` is not explicitly set, core and
-   project queries share the same DB, reducing the benefit of split routing.
-
-## Configuration
-
-Set `store.corePath` to a dedicated path (different from `store.path`) to fully
-separate core memory from project memory:
-
-```json
-{
-  "store": {
-    "path": "~/.openclaw/memory/main.sqlite",
-    "corePath": "~/.openclaw/memory/core.sqlite",
-    "projectPathTemplate": "~/.openclaw/memory/projects/{projectId}.sqlite"
-  }
-}
+```yaml
+agents:
+  defaults:
+    memorySearch:
+      store:
+        path: "~/.openclaw/memory/main.sqlite"
+      sync:
+        onSearch: false # Default
+        watch: true # Default
+        intervalMinutes: 120 # Default
 ```
+
+### Large Corpora (split-DB)
+
+```yaml
+agents:
+  defaults:
+    memorySearch:
+      store:
+        path: "~/.openclaw/memory/fallback.sqlite"
+        corePath: "~/.openclaw/memory/core.sqlite"
+        projectPathTemplate: "~/.openclaw/memory/projects/{projectId}.sqlite"
+      sync:
+        onSearch: false # Never enable on large corpora
+        watch: true # Real-time updates
+        intervalMinutes: 60 # More frequent background reconciliation
+```
+
+## Anti-pattern: "sync-on-search death spiral"
+
+- **Symptom:** Interactive requests hang indefinitely during early project phases.
+- **Root cause:** `sync.onSearch: true` on a large corpus. Batch embeddings fail, leading to sequential fallback that paralyzes lanes.
+- **Why it happens:** Default was `onSearch: true` in older versions. This is now disabled by default.
+- **Fix:** Keep `sync.onSearch: false` (default). Use background `intervalMinutes` and `watch: true` for ingestion.
+
+## Migration and recovery
+
+- **How to move from monolithic to split DB:** Set `corePath` and `projectPathTemplate` in your config. Let the background sync run—it will automatically re-route updates to the new project DBs as they are touched.
+- **How to detect misrouting:** If your main `corePath` (or legacy `path`) DB continues growing enormously while project DBs exist, check your `.openclaw_kb` placement.
+- **What NOT to delete blindly:** Keep all `.sqlite` files (especially the old monolithic DB) until you have fully verified the migration is complete and project routing is stable.

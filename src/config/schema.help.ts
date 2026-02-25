@@ -713,6 +713,10 @@ export const FIELD_HELP: Record<string, string> = {
     'Backup provider used when primary embeddings fail: "openai", "gemini", "voyage", "mistral", "local", or "none". Set a real fallback for production reliability; use "none" only if you prefer explicit failures.',
   "agents.defaults.memorySearch.store.path":
     "Sets where the SQLite memory index is stored on disk for each agent. Keep the default `~/.openclaw/memory/{agentId}.sqlite` unless you need custom storage placement or backup policy alignment.",
+  "agents.defaults.memorySearch.store.corePath":
+    "Separate core/personal memory database from project-specific databases. Prevents mixed storage when using split-DB routing. Recommended: ~/.openclaw/memory/core.sqlite",
+  "agents.defaults.memorySearch.store.projectPathTemplate":
+    "Template path for project-specific databases. Supports {projectId} substitution. Example: ~/.openclaw/memory/projects/{projectId}.sqlite",
   "agents.defaults.memorySearch.store.vector.enabled":
     "Enables the sqlite-vec extension used for vector similarity queries in memory search (default: true). Keep this enabled for normal semantic recall; disable only for debugging or fallback-only operation.",
   "agents.defaults.memorySearch.store.vector.extensionPath":
@@ -819,11 +823,13 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.defaults.memorySearch.sync.onSessionStart":
     "Triggers a memory index sync when a session starts so early turns see fresh memory content. Keep enabled when startup freshness matters more than initial turn latency.",
   "agents.defaults.memorySearch.sync.onSearch":
-    "Uses lazy sync by scheduling reindex on search after content changes are detected. Keep enabled for lower idle overhead, or disable if you require pre-synced indexes before any query.",
+    "Triggers synchronous embedding computation during search queries. **Disabled by default** to prevent interactive lane starvation on large corpora. Use background sync (intervalMinutes + watch) instead.",
   "agents.defaults.memorySearch.sync.watch":
     "Watches memory files and schedules index updates from file-change events (chokidar). Enable for near-real-time freshness; disable on very large workspaces if watch churn is too noisy.",
   "agents.defaults.memorySearch.sync.watchDebounceMs":
     "Debounce window in milliseconds for coalescing rapid file-watch events before reindex runs. Increase to reduce churn on frequently-written files, or lower for faster freshness.",
+  "agents.defaults.memorySearch.sync.intervalMinutes":
+    "Background sync interval in minutes (default: 120). Set >0 to enable periodic full reindex. Use with watch:true for real-time updates without blocking request lanes.",
   "agents.defaults.memorySearch.sync.sessions.deltaBytes":
     "Requires at least this many newly appended bytes before session transcript changes trigger reindex (default: 100000). Increase to reduce frequent small reindexes, or lower for faster transcript freshness.",
   "agents.defaults.memorySearch.sync.sessions.deltaMessages":

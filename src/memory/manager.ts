@@ -852,6 +852,9 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       const now = Date.now();
       if (now - this.lastLargeCorpusSkipLogAt >= 60_000) {
         this.lastLargeCorpusSkipLogAt = now;
+        log.warn(
+          "Using synchronous onSearch indexing with large codebases can lead to request timeouts. For corpora >10K files, recommend: set sync.onSearch=false and enable intervalMinutes (60-120) and/or watch: true for background indexing.",
+        );
         log.debug("memory search: skipping on-search sync for large corpus", {
           indexedFiles: count,
           threshold,

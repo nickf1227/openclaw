@@ -564,6 +564,8 @@ export const MemorySearchSchema = z
       .object({
         driver: z.literal("sqlite").optional(),
         path: z.string().optional(),
+        corePath: z.string().optional(),
+        projectPathTemplate: z.string().optional(),
         vector: z
           .object({
             enabled: z.boolean().optional(),
@@ -573,6 +575,9 @@ export const MemorySearchSchema = z
           .optional(),
       })
       .strict()
+      .refine((val) => !("cache" in val), {
+        message: "Cache settings should be at memorySearch.cache, not memorySearch.store.cache",
+      })
       .optional(),
     chunking: z
       .object({

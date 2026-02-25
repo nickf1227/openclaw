@@ -253,4 +253,39 @@ describe("memory search config", () => {
     const resolved = resolveMemorySearchConfig(cfg, "main");
     expect(resolved?.sources).toContain("sessions");
   });
+
+  describe("store nesting and values", () => {
+    it("accepts new store schema fields", () => {
+      const cfg = asConfig({
+        agents: {
+          defaults: {
+            memorySearch: {
+              store: {
+                path: "/custom/path.sqlite",
+                corePath: "/custom/core.sqlite",
+                projectPathTemplate: "/custom/{projectId}.sqlite",
+              },
+            },
+          },
+          list: [
+            {
+              id: "test",
+              default: true,
+              memorySearch: {
+                store: {
+                  corePath: "/agent/core.sqlite",
+                },
+              },
+            },
+          ],
+        },
+      });
+      const defaults = resolveMemorySearchConfig(cfg, "main");
+      expect(defaults?.store?.corePath).toMatch("/custom/core.sqlite");
+      expect(defaults?.store?.projectPathTemplate).toMatch("/custom/{projectId}.sqlite");
+      const agent = resolveMemorySearchConfig(cfg, "test");
+      expect(agent?.store?.corePath).toContain("agent");
+      expect(agent?.store?.projectPathTemplate).toMatch("/custom/{projectId}.sqlite");
+    });
+  });
 });

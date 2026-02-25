@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { buildConfigSchema } from "./schema.js";
+import { MemorySearchSchema } from "./zod-schema.agent-runtime.js";
+
+describe("store.cache nesting validation", () => {
+  it("rejects store.cache nesting (strict mode catches unrecognized key)", () => {
+    const result = MemorySearchSchema.safeParse({
+      store: {
+        cache: { enabled: true },
+      },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // .strict() catches unrecognized keys before .refine() can run
+      expect(result.error.issues[0].message).toMatch(/cache|Unrecognized/i);
+    }
+  });
+
+  it("accepts valid store config with new fields", () => {
+    const result = MemorySearchSchema.safeParse({
+      store: {
+        path: "/custom/path.sqlite",
+        corePath: "/custom/core.sqlite",
+        projectPathTemplate: "/custom/{projectId}.sqlite",
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+});
 
 describe("config schema", () => {
   it("exports schema + hints", () => {
