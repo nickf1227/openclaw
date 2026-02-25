@@ -303,7 +303,7 @@ export const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.memorySearch.store.path": "Memory Search Index Path",
   "agents.defaults.memorySearch.store.corePath": "Core Database Path",
   "agents.defaults.memorySearch.store.projectPathTemplate": "Project Store Path Template",
-  "agents.defaults.memorySearch.suppressCoreFileWarning": "Suppress Core File Warning",
+  "agents.defaults.memorySearch.suppressCoreFileWarning": "Suppress Core File Warnings",
   "agents.defaults.memorySearch.store.vector.enabled": "Memory Search Vector Index",
   "agents.defaults.memorySearch.store.vector.extensionPath": "Memory Search Vector Extension Path",
   "agents.defaults.memorySearch.chunking.tokens": "Memory Chunk Tokens",

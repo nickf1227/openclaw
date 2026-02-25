@@ -721,6 +721,8 @@ export const FIELD_HELP: Record<string, string> = {
     "Enables the sqlite-vec extension used for vector similarity queries in memory search (default: true). Keep this enabled for normal semantic recall; disable only for debugging or fallback-only operation.",
   "agents.defaults.memorySearch.store.vector.extensionPath":
     "Overrides the auto-discovered sqlite-vec extension library path (`.dylib`, `.so`, or `.dll`). Use this when your runtime cannot find sqlite-vec automatically or you pin a known-good build.",
+  "agents.defaults.memorySearch.suppressCoreFileWarning":
+    "When true, suppresses warnings about core and project memories sharing storage. Only suppress warnings if you intentionally use single-DB mode and understand the performance implications for large corpora.",
   "agents.defaults.memorySearch.chunking.tokens":
     "Chunk size in tokens used when splitting memory sources before embedding/indexing. Increase for broader context per chunk, or lower to improve precision on pinpoint lookups.",
   "agents.defaults.memorySearch.chunking.overlap":

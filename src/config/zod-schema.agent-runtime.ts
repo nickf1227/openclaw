@@ -651,7 +651,7 @@ export const MemorySearchSchema = z
       })
       .strict()
       .optional(),
-    suppressCoreFileWarning: z.boolean().optional().default(false),
+    suppressCoreFileWarning: z.boolean().optional(),
   })
   .strict()
   .optional();
