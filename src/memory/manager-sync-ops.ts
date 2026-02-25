@@ -136,6 +136,9 @@ export abstract class MemoryManagerSyncOps {
     { lastSize: number; pendingBytes: number; pendingMessages: number }
   >();
 
+  protected abstract syncInProgress: boolean;
+  protected abstract syncDeferred: boolean;
+  protected abstract syncDeferredReason?: string;
   protected abstract readonly cache: { enabled: boolean; maxEntries?: number };
   protected abstract db: DatabaseSync;
   protected abstract computeProviderKey(): string;
@@ -1246,6 +1249,12 @@ export abstract class MemoryManagerSyncOps {
     let shouldSyncMemory = false;
     let shouldSyncSessions = false;
     const progress = params?.progress ? this.createSyncProgress(params.progress) : undefined;
+
+    // Mark sync as in progress and clear any previous deferral
+    this.syncInProgress = true;
+    this.syncDeferred = false;
+    this.syncDeferredReason = undefined;
+
     if (progress) {
       progress.report({
         completed: progress.completed,

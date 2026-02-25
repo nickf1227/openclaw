@@ -46,6 +46,9 @@ export abstract class MemoryManagerEmbeddingOps extends MemoryManagerSyncOps {
   protected abstract batchFailureLastError?: string;
   protected abstract batchFailureLastProvider?: string;
   protected abstract batchFailureLock: Promise<void>;
+  protected abstract syncInProgress: boolean;
+  protected abstract syncDeferred: boolean;
+  protected abstract syncDeferredReason?: string;
   private dbContextLock: Promise<void> = Promise.resolve();
 
   private buildEmbeddingBatches(chunks: MemoryChunk[]): MemoryChunk[][] {
@@ -695,6 +698,23 @@ export abstract class MemoryManagerEmbeddingOps extends MemoryManagerSyncOps {
         attempts,
         forceDisable,
       });
+
+      // If batch fails during sync, DO NOT fall back to sequential embedding.
+      // Instead, defer the sync to background and return empty embeddings.
+      // This prevents blocking the request lane for minutes while processing
+      // hundreds of individual embedding API calls sequentially.
+      if (this.syncInProgress) {
+        this.syncDeferred = true;
+        this.syncDeferredReason = message;
+        const suffix = failure.disabled ? "disabling batch" : "keeping batch enabled";
+        log.warn(
+          `memory embeddings: ${params.provider} batch failed during sync (${failure.count}/${BATCH_FAILURE_LIMIT}); ${suffix}. ` +
+            `Aborting sync attempt. Scheduling background retry. Error: ${message}`,
+        );
+        // Return empty embeddings - search will continue with existing embeddings (stale is better than frozen)
+        return [];
+      }
+
       const suffix = failure.disabled ? "disabling batch" : "keeping batch enabled";
       log.warn(
         `memory embeddings: ${params.provider} batch failed (${failure.count}/${BATCH_FAILURE_LIMIT}); ${suffix}; falling back to non-batch embeddings: ${message}`,
